@@ -6,5 +6,5 @@ matplotlib
 seaborn
 joblib
 ydata-profiling
-streamlit-pandas-profiling
 statsmodels
+
