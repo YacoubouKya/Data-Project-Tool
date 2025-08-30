@@ -11,7 +11,8 @@ seaborn==0.13.2
 joblib==1.3.2
 
 # Profiling
-ydata-profiling==5.7.0
+ydata-profiling==4.16.1
 
 # Logging / pretty printing
 rich==14.1.0
+
