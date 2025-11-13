@@ -1,59 +1,106 @@
 # eda.py
 # modules/eda.py
+
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from ydata_profiling import ProfileReport
+from io import BytesIO
+
+def generate_profile(df: pd.DataFrame):
+    profile = ProfileReport(df, title="Profiling EDA", explorative=True)
+    return profile
 
 def run_eda(df: pd.DataFrame):
-    """
-    Interface EDA :
-    - Aperçu
-    - Profiling (ydata_profiling via streamlit_pandas_profiling si dispo)
-    - Visualisations basiques (subset)
-    """
     st.subheader("Aperçu général")
     st.write("Dimensions :", df.shape)
     st.dataframe(df.head())
 
-    # Quick stats
     st.markdown("**Statistiques descriptives (numériques)**")
-    st.dataframe(df.describe().T)
+    st.dataframe(df.describe().T.round(4))
 
-    # Try to show profiling inline
-    if st.button("Générer Profiling Report (interactive)"):
-        try:
-            from ydata_profiling import ProfileReport
-            from streamlit_pandas_profiling import st_profile_report
-            # allow user to pick minimal or full
-            #minimal = st.checkbox("Mode minimal (plus rapide)", value=True)
-            prof = ProfileReport(df, title="Profiling EDA", explorative=True)
-            st_profile_report(prof)
-        except Exception as e:
-            st.warning("pandas_profiling ou streamlit_pandas_profiling non installé ou erreur.")
-            st.write("Erreur :", e)
-            st.info("Vous pouvez installer: pip install ydata-profiling streamlit-pandas-profiling")
+    # --------------------------
+    # Rapport de profiling
+    # --------------------------
+    if "report_generated" not in st.session_state:
+        st.session_state.report_generated = False
+    if "show_report" not in st.session_state:
+        st.session_state.show_report = False
 
-    # Basic visual plots
-    if st.button("Générer visualisations basiques (hist / corr)"):
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        num_cols = df.select_dtypes(include="number").columns.tolist()
-        n = min(6, len(num_cols))
-        if n == 0:
-            st.info("Aucune variable numérique détectée pour tracer des histogrammes.")
+    if not st.session_state.report_generated:
+        if st.button("📊 Générer le rapport de Profiling"):
+            prof = generate_profile(df)
+            prof.to_file("profiling_report.html")
+            st.session_state.report_generated = True
+            st.session_state.show_report = True
+
+    if st.session_state.report_generated:
+        st.success("✅ Rapport de profiling généré.")
+        col1, col2, col3 = st.columns([1,1,1])
+        with col1:
+            if st.button("👁️ Afficher le rapport"):
+                st.session_state.show_report = True
+        with col2:
+            if st.button("🙈 Masquer le rapport"):
+                st.session_state.show_report = False
+        with col3:
+            with open("profiling_report.html", "rb") as f:
+                st.download_button(label="💾 Télécharger le rapport HTML", data=f, file_name="profiling_report.html", mime="text/html")
+
+        if st.session_state.show_report:
+            with open("profiling_report.html", "r", encoding="utf-8") as f:
+                report_html = f.read()
+            st.components.v1.html(report_html, height=800, scrolling=True)
+
+    # --------------------------
+    # Histogrammes : sélection interactive (évite boucle coûteuse par défaut)
+    # --------------------------
+    num_cols = df.select_dtypes(include="number").columns.tolist()
+    if num_cols:
+        st.subheader("Histogrammes (sélectionner une variable ou afficher un échantillon)")
+        col_choice = st.selectbox("Choisir une variable à afficher", ["--Tous (limité)-->"] + num_cols)
+        if col_choice == "--Tous (limité)-->":
+            # On propose un échantillon des premières 6 variables pour éviter surcharge
+            to_plot = num_cols[:6]
         else:
-            cols_sample = num_cols[:n]
-            st.write("Histogrammes (quelques variables numériques)")
-            fig, axs = plt.subplots(n, 1, figsize=(6, 3*n))
-            if n == 1:
-                axs = [axs]
-            for ax, c in zip(axs, cols_sample):
-                sns.histplot(df[c].dropna(), kde=False, ax=ax)
-                ax.set_title(c)
-            st.pyplot(fig)
+            to_plot = [col_choice]
 
-        if len(num_cols) >= 2:
-            st.write("Heatmap de corrélation (subset)")
-            corr = df[num_cols[:min(8, len(num_cols))]].corr()
-            fig2, ax2 = plt.subplots(figsize=(6,5))
-            sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", ax=ax2)
-            st.pyplot(fig2)
+        for col in to_plot:
+            fig, ax = plt.subplots()
+            sns.histplot(df[col].dropna(), kde=True, ax=ax)
+            ax.set_title(f"Histogramme de {col}")
+            st.pyplot(fig)
+            plt.close(fig)
+
+    # --------------------------
+    # Corrélation
+    # --------------------------
+    if "corr_generated" not in st.session_state:
+        st.session_state.corr_generated = False
+    if "show_corr" not in st.session_state:
+        st.session_state.show_corr = False
+
+    if not st.session_state.corr_generated:
+        if st.button("🔗 Générer la matrice de corrélation"):
+            st.session_state.corr_generated = True
+            st.session_state.show_corr = True
+
+    if st.session_state.corr_generated:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👁️ Afficher corrélation"):
+                st.session_state.show_corr = True
+        with col2:
+            if st.button("🙈 Masquer corrélation"):
+                st.session_state.show_corr = False
+
+        if st.session_state.show_corr:
+            st.subheader("Matrice de corrélation")
+            corr = df.corr(numeric_only=True)
+            # arrondir pour lisibilité
+            corr_display = corr.round(3)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.heatmap(corr_display, annot=True, cmap="coolwarm", center=0, ax=ax)
+            st.pyplot(fig)
+            plt.close(fig)
