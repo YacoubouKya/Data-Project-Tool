@@ -159,7 +159,7 @@ streamlit run data_tool_app.py
 
 **Yacoubou KOUMAI**
 Étudiant en Master Ingénierie Mathématique & Actuariat
-Stagiaire chargé d’études actuarielles – Groupe Pasteur Mutualité
+Alternant chargé d’études actuarielles – Groupe Pasteur Mutualité
 
 ---
 
