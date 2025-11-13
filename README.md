@@ -81,7 +81,7 @@ Pour chaque anomalie détectée :
 ```
 project/
 │
-├── app.py                 # Point d'entrée Streamlit
+├── data_tool_app.py                 # Point d'entrée Streamlit
 ├── modules/
 │   ├── data_loader.py     # Chargement de fichiers
 │   ├── eda.py             # Analyse exploratoire
