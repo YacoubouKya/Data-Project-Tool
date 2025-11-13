@@ -78,7 +78,7 @@ Pour chaque anomalie détectée :
 
 ## 🗂️ Organisation du projet
 
-
+```
 project/
 │
 ├── app.py                 # Point d'entrée Streamlit
@@ -92,7 +92,7 @@ project/
 ├── requirements.txt       # Dépendances Python
 └── README.md              # Documentation
 
-
+```
 
 
 ## ⚙️ Installation
