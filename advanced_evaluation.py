@@ -326,80 +326,83 @@ def run_advanced_evaluation(model, X_test, y_test, task_type="classification"):
             except Exception as e:
                 st.warning(f"⚠️ Erreur lors du calcul des probabilités : {str(e)}")
         
-        # Onglets pour les différentes analyses
-        tabs = ["📊 Déciles", "📈 Learning Curves", "🎯 SHAP", "📋 Calibration"]
-        if task_type != "classification":
-            tabs.remove("📋 Calibration")
+        # SECTION 1: Analyse par déciles (automatique)
+        st.markdown("### 📊 Analyse par Déciles")
+        decile_analysis(y_test, y_pred, y_pred_proba, task_type)
         
-        selected_tab = st.tabs(tabs)
+        st.markdown("---")
         
-        # Analyse par déciles
-        with selected_tab[0]:
-            decile_analysis(y_test, y_pred, y_pred_proba, task_type)
+        # SECTION 2: Analyses avancées avec boutons séparés
+        st.markdown("### 🔬 Analyses Avancées")
         
-        # Learning curves - EXÉCUTION AUTOMATIQUE
-        with selected_tab[1]:
-            st.write("📈 **Analyse des Learning Curves**")
-            st.info("💡 Les learning curves aident à détecter l'overfitting et l'underfitting")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📈 Learning Curves", type="primary", use_container_width=True):
+                st.session_state["show_learning_curves"] = True
+                st.session_state["show_shap"] = False
+                st.rerun()
+        
+        with col2:
+            if SHAP_AVAILABLE:
+                if st.button("🎯 Analyse SHAP", type="primary", use_container_width=True):
+                    st.session_state["show_shap"] = True
+                    st.session_state["show_learning_curves"] = False
+                    st.rerun()
+            else:
+                st.warning("⚠️ SHAP non installé")
+        
+        # SECTION 3: Affichage des résultats
+        if st.session_state.get("show_learning_curves", False):
+            st.markdown("---")
+            st.markdown("### 📈 Learning Curves")
             
-            # Exécution automatique comme pour les déciles
-            with st.spinner("📈 Calcul des learning curves en cours..."):
+            with st.spinner("📈 Calcul en cours..."):
                 try:
-                    # Récupérer les données d'entraînement depuis session_state
                     X_train = st.session_state.get("X_train", X_test)
                     y_train = st.session_state.get("y_train", y_test)
                     
-                    # Validation des données
                     if X_train is None or y_train is None:
-                        st.error("❌ Données d'entraînement non disponibles")
+                        st.error("❌ Données non disponibles")
                     else:
-                        st.write("**Données utilisées :**")
-                        st.write(f"- X_train shape: {X_train.shape}")
-                        st.write(f"- y_train shape: {y_train.shape}")
-                        
                         learning_curve_analysis(model, X_train, y_train, cv=5)
-                        st.success("✅ **Learning Curves générées avec succès !**")
+                        st.success("✅ Learning Curves générées !")
                         
                 except Exception as e:
-                    st.error(f"❌ Erreur lors de la génération des learning curves : {str(e)}")
-                    st.code(f"Erreur détaillée: {str(e)}")
-        
-        # SHAP - EXÉCUTION AUTOMATIQUE
-        with selected_tab[2]:
-            st.write("🎯 **Analyse SHAP (SHapley Additive exPlanations)**")
-            st.info("💡 SHAP explique l'impact de chaque feature sur les prédictions du modèle")
+                    st.error(f"❌ Erreur: {str(e)}")
             
-            # Vérifier si SHAP est disponible
-            if not SHAP_AVAILABLE:
-                st.warning("⚠️ SHAP n'est pas installé. Installez-le avec : `pip install shap`")
-                st.code("pip install shap")
-            else:
-                # Exécution automatique comme pour les déciles
-                with st.spinner("🔍 Analyse SHAP en cours..."):
-                    try:
-                        # Récupérer les noms de features si disponibles
-                        feature_names = None
-                        if hasattr(X_test, 'columns'):
-                            feature_names = X_test.columns.tolist()
-                        
-                        st.write("**Informations :**")
-                        st.write(f"- X_test shape: {X_test.shape}")
-                        st.write(f"- Features: {len(feature_names) if feature_names else 'Inconnues'}")
-                        
-                        shap_analysis(model, X_test, feature_names, max_display=20)
-                        st.success("✅ **Analyse SHAP terminée avec succès !**")
-                        
-                    except Exception as e:
-                        st.error(f"❌ Erreur lors de l'analyse SHAP : {str(e)}")
-                        st.code(f"Erreur détaillée: {str(e)}")
+            if st.button("❌ Fermer"):
+                st.session_state["show_learning_curves"] = False
+                st.rerun()
         
-        # Calibration (classification seulement)
-        if task_type == "classification" and len(selected_tab) > 3:
-            with selected_tab[3]:
-                if y_pred_proba is not None:
-                    calibration_plot(y_test, y_pred_proba)
-                else:
-                    st.warning("⚠️ Le modèle ne fournit pas de probabilités")
+        if st.session_state.get("show_shap", False):
+            st.markdown("---")
+            st.markdown("### 🎯 Analyse SHAP")
+            
+            with st.spinner("🔍 Analyse en cours..."):
+                try:
+                    feature_names = None
+                    if hasattr(X_test, 'columns'):
+                        feature_names = X_test.columns.tolist()
+                    
+                    shap_analysis(model, X_test, feature_names, max_display=20)
+                    st.success("✅ Analyse SHAP terminée !")
+                    
+                except Exception as e:
+                    st.error(f"❌ Erreur: {str(e)}")
+            
+            if st.button("❌ Fermer"):
+                st.session_state["show_shap"] = False
+                st.rerun()
+        
+        # SECTION 4: Calibration (classification)
+        if task_type == "classification":
+            st.markdown("---")
+            st.markdown("### 📋 Courbe de Calibration")
+            if y_pred_proba is not None:
+                calibration_plot(y_test, y_pred_proba)
+            else:
+                st.warning("⚠️ Probabilités non disponibles")
     
     except Exception as e:
         st.error(f"❌ Erreur générale dans l'évaluation avancée : {str(e)}")
