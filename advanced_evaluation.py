@@ -326,12 +326,6 @@ def run_advanced_evaluation(model, X_test, y_test, task_type="classification"):
             except Exception as e:
                 st.warning(f"⚠️ Erreur lors du calcul des probabilités : {str(e)}")
         
-        # Initialiser les états dans session_state
-        if "learning_curves_clicked" not in st.session_state:
-            st.session_state["learning_curves_clicked"] = False
-        if "shap_clicked" not in st.session_state:
-            st.session_state["shap_clicked"] = False
-        
         # Onglets pour les différentes analyses
         tabs = ["📊 Déciles", "📈 Learning Curves", "🎯 SHAP", "📋 Calibration"]
         if task_type != "classification":
@@ -343,48 +337,34 @@ def run_advanced_evaluation(model, X_test, y_test, task_type="classification"):
         with selected_tab[0]:
             decile_analysis(y_test, y_pred, y_pred_proba, task_type)
         
-        # Learning curves
+        # Learning curves - EXÉCUTION AUTOMATIQUE
         with selected_tab[1]:
             st.write("📈 **Analyse des Learning Curves**")
             st.info("💡 Les learning curves aident à détecter l'overfitting et l'underfitting")
             
-            # Bouton simple avec état explicite
-            if st.button("🚀 Générer les Learning Curves", key="learning_curves_main"):
-                st.session_state["learning_curves_clicked"] = True
-                st.session_state["shap_clicked"] = False  # Réinitialiser l'autre
-            
-            # Exécuter l'analyse si le bouton a été cliqué
-            if st.session_state["learning_curves_clicked"]:
-                st.write("---")
-                st.write("**📊 Résultats des Learning Curves**")
-                
-                with st.spinner("📈 Calcul des learning curves en cours..."):
-                    try:
-                        # Récupérer les données d'entraînement depuis session_state
-                        X_train = st.session_state.get("X_train", X_test)
-                        y_train = st.session_state.get("y_train", y_test)
+            # Exécution automatique comme pour les déciles
+            with st.spinner("📈 Calcul des learning curves en cours..."):
+                try:
+                    # Récupérer les données d'entraînement depuis session_state
+                    X_train = st.session_state.get("X_train", X_test)
+                    y_train = st.session_state.get("y_train", y_test)
+                    
+                    # Validation des données
+                    if X_train is None or y_train is None:
+                        st.error("❌ Données d'entraînement non disponibles")
+                    else:
+                        st.write("**Données utilisées :**")
+                        st.write(f"- X_train shape: {X_train.shape}")
+                        st.write(f"- y_train shape: {y_train.shape}")
                         
-                        # Validation des données
-                        if X_train is None or y_train is None:
-                            st.error("❌ Données d'entraînement non disponibles")
-                        else:
-                            st.write("**Données utilisées :**")
-                            st.write(f"- X_train shape: {X_train.shape}")
-                            st.write(f"- y_train shape: {y_train.shape}")
-                            
-                            learning_curve_analysis(model, X_train, y_train, cv=5)
-                            st.success("✅ **Learning Curves générées avec succès !**")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Erreur lors de la génération des learning curves : {str(e)}")
-                        st.code(f"Erreur détaillée: {str(e)}")
-                
-                # Bouton pour réinitialiser
-                if st.button("🔄 Réinitialiser", key="reset_learning_curves"):
-                    st.session_state["learning_curves_clicked"] = False
-                    st.rerun()
+                        learning_curve_analysis(model, X_train, y_train, cv=5)
+                        st.success("✅ **Learning Curves générées avec succès !**")
+                        
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la génération des learning curves : {str(e)}")
+                    st.code(f"Erreur détaillée: {str(e)}")
         
-        # SHAP
+        # SHAP - EXÉCUTION AUTOMATIQUE
         with selected_tab[2]:
             st.write("🎯 **Analyse SHAP (SHapley Additive exPlanations)**")
             st.info("💡 SHAP explique l'impact de chaque feature sur les prédictions du modèle")
@@ -394,38 +374,24 @@ def run_advanced_evaluation(model, X_test, y_test, task_type="classification"):
                 st.warning("⚠️ SHAP n'est pas installé. Installez-le avec : `pip install shap`")
                 st.code("pip install shap")
             else:
-                # Bouton simple avec état explicite
-                if st.button("🔍 Analyser avec SHAP", key="shap_main"):
-                    st.session_state["shap_clicked"] = True
-                    st.session_state["learning_curves_clicked"] = False  # Réinitialiser l'autre
-                
-                # Exécuter l'analyse si le bouton a été cliqué
-                if st.session_state["shap_clicked"]:
-                    st.write("---")
-                    st.write("**🎯 Résultats de l'analyse SHAP**")
-                    
-                    with st.spinner("🔍 Analyse SHAP en cours..."):
-                        try:
-                            # Récupérer les noms de features si disponibles
-                            feature_names = None
-                            if hasattr(X_test, 'columns'):
-                                feature_names = X_test.columns.tolist()
-                            
-                            st.write("**Informations :**")
-                            st.write(f"- X_test shape: {X_test.shape}")
-                            st.write(f"- Features: {len(feature_names) if feature_names else 'Inconnues'}")
-                            
-                            shap_analysis(model, X_test, feature_names, max_display=20)
-                            st.success("✅ **Analyse SHAP terminée avec succès !**")
-                            
-                        except Exception as e:
-                            st.error(f"❌ Erreur lors de l'analyse SHAP : {str(e)}")
-                            st.code(f"Erreur détaillée: {str(e)}")
-                    
-                    # Bouton pour réinitialiser
-                    if st.button("🔄 Réinitialiser", key="reset_shap"):
-                        st.session_state["shap_clicked"] = False
-                        st.rerun()
+                # Exécution automatique comme pour les déciles
+                with st.spinner("🔍 Analyse SHAP en cours..."):
+                    try:
+                        # Récupérer les noms de features si disponibles
+                        feature_names = None
+                        if hasattr(X_test, 'columns'):
+                            feature_names = X_test.columns.tolist()
+                        
+                        st.write("**Informations :**")
+                        st.write(f"- X_test shape: {X_test.shape}")
+                        st.write(f"- Features: {len(feature_names) if feature_names else 'Inconnues'}")
+                        
+                        shap_analysis(model, X_test, feature_names, max_display=20)
+                        st.success("✅ **Analyse SHAP terminée avec succès !**")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de l'analyse SHAP : {str(e)}")
+                        st.code(f"Erreur détaillée: {str(e)}")
         
         # Calibration (classification seulement)
         if task_type == "classification" and len(selected_tab) > 3:
